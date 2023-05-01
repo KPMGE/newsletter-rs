@@ -1,9 +1,9 @@
 #[tokio::test]
 async fn health_check_test() {
-    spawn_app().await.expect("Failed to spawn app");
+    spawn_app();
 
     let client = reqwest::Client::new();
-    let uri = "localhost:8080/health_check";
+    let uri = "http://localhost:8080/health_check";
     let response = client
         .get(uri)
         .send()
@@ -14,6 +14,7 @@ async fn health_check_test() {
     assert_eq!(Some(0), response.content_length());
 }
 
-async fn spawn_app() -> std::io::Result<()> {
-    newsletter_rs::run().await
+fn spawn_app() {
+    let server = newsletter_rs::run().expect("Could not start server");
+    let _ = tokio::spawn(server);
 }

@@ -1,17 +1,18 @@
 use actix_web::{get, Responder, HttpServer, App, HttpResponse};
+use actix_web::dev::Server;
 
 #[get("/health_check")]
-pub async fn health_check() -> impl Responder {
-    HttpResponse::Ok()
+async fn health_check() -> impl Responder {
+    HttpResponse::Ok().finish()
 }
 
-pub async fn run() -> std::io::Result<()> {
-    HttpServer::new(|| {
+pub fn run() -> Result<Server, std::io::Error> {
+    let server = HttpServer::new(|| {
         App::new()
             .service(health_check)
     })
     .bind(("localhost", 8080))?
-    .run()
-    .await
-}
+    .run();
 
+    Ok(server)
+}
