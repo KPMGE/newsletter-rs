@@ -1,0 +1,8 @@
+app_port: 8080
+app_host: localhost
+database: 
+  user_name: postgres
+  password: password
+  port: 5432
+  host: localhost
+  db_name: newsletter

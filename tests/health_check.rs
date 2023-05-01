@@ -1,5 +1,8 @@
 use std::net::TcpListener;
 
+use newsletter_rs::configuration::get_configuration;
+use sqlx::{PgConnection, Connection};
+
 fn spawn_app() -> String {
     // we  bind to 0, so we get a random port assigned by the OS for us
     let listener = TcpListener::bind("localhost:0").expect("Coult not start tcp listener");
@@ -54,4 +57,30 @@ async fn subscribe_returns_400_when_data_is_missing() {
             error_message
         );
     }
+}
+
+#[tokio::test]
+async fn subscribe_returns_200_for_valid_form_data() {
+    let app_addr = spawn_app();
+    let configs = get_configuration().expect("could not read configuration file!");
+    let db_connection_string = configs.database.get_connection_string();
+
+    println!("CONNECTION STR: {}", db_connection_string);
+
+    let _db_connection = PgConnection::connect(&db_connection_string)
+        .await
+        .expect("Failed to connect to Postgres");
+    let client = reqwest::Client::new();
+
+
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let response = client
+        .post(format!("{}/subscribe", app_addr))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await
+        .expect("Failed to execute request");
+
+    assert_eq!(200, response.status().as_u16());
 }
