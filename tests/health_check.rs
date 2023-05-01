@@ -7,7 +7,7 @@ fn spawn_app() -> String {
     // port assigned by OS
     let port = listener.local_addr().unwrap().port();
 
-    let server = newsletter_rs::run(listener).expect("Could not start server");
+    let server = newsletter_rs::startup::run(listener).expect("Could not start server");
     let _ = tokio::spawn(server);
 
     format!("http://localhost:{}", port)
