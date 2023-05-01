@@ -1,17 +1,7 @@
-use actix_web::{get, Responder, HttpServer, App, HttpResponse};
+use newsletter_rs::run;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()>{
-    HttpServer::new(|| {
-        App::new()
-            .service(healthcheck)
-    })
-    .bind(("localhost", 8080))?
-    .run()
-    .await
+    run().await
 }
 
-#[get("/healthcheck")]
-async fn healthcheck() -> impl Responder {
-    HttpResponse::Ok()
-}
