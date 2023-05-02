@@ -1,7 +1,7 @@
 use std::net::TcpListener;
-
-use newsletter_rs::configuration::get_configuration;
-use sqlx::{PgConnection, Connection, PgPool};
+use uuid::Uuid;
+use newsletter_rs::configuration::{get_configuration, DbSettings};
+use sqlx::{PgConnection, Connection, PgPool,Executor};
 
 pub struct TestApp {
     pub address: String, 
@@ -14,22 +14,25 @@ async fn spawn_app() -> TestApp {
 
     // port assigned by OS
     let port = listener.local_addr().unwrap().port();
+    let mut configs = get_configuration().expect("could not read configuration file!");
 
+    // get a random database name
+    let random_db_name = Uuid::new_v4()
+        .to_string()
+        .chars()
+        .filter(|c| c.is_alphabetic())
+        .collect::<String>();
 
-    let configs = get_configuration().expect("could not read configuration file!");
-    let db_connection_string = configs.database.get_connection_string();
+    configs.database.db_name = format!("db_{}", random_db_name);
 
-    let pool = PgPool::connect(&db_connection_string)
-        .await
-        .expect("Failed to connect to Postgres");
-
+    let pool = configure_database(&configs.database).await;
     let server = newsletter_rs::startup::run(listener, pool.clone()).expect("Could not start server");
     let address = format!("http://localhost:{}", port);
     let _ = tokio::spawn(server);
 
     TestApp { 
         address,
-        db_pool:  pool
+        db_pool: pool
     }
 }
 
@@ -79,14 +82,7 @@ async fn subscribe_returns_400_when_data_is_missing() {
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
     let app = spawn_app().await;
-    let configs = get_configuration().expect("could not read configuration file!");
-    let db_connection_string = configs.database.get_connection_string();
-
-    let mut db_connection = PgConnection::connect(&db_connection_string)
-        .await
-        .expect("Failed to connect to Postgres");
     let client = reqwest::Client::new();
-
 
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
     let response = client
@@ -99,11 +95,33 @@ async fn subscribe_returns_200_for_valid_form_data() {
 
 
     let data_saved = sqlx::query!("SELECT email, name FROM subscriptions")
-        .fetch_one(&mut db_connection)
+        .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch subscription");
 
     assert_eq!(200, response.status().as_u16());
     assert_eq!(data_saved.name, "le guin");
     assert_eq!(data_saved.email, "ursula_le_guin@gmail.com");
+}
+
+pub async fn configure_database(config: &DbSettings) -> PgPool {
+    let mut connection = PgConnection::connect(&config.get_connection_string_without_db())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    connection
+        .execute(format!(r#"CREATE DATABASE {};"#, config.db_name).as_str())
+        .await
+        .expect("Failed to create database");
+
+    let connection_pool = PgPool::connect(&config.get_connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("Failed to migrate the database");
+
+    connection_pool
 }
