@@ -13,7 +13,7 @@ chrono = "0.4.15"
 tracing = { version =  "0.1", features = ["log"] }
 tracing-log = "0.1"
 tracing-subscriber = { version = "0.3", features = ["registry", "env-filter"] }
-tracing-bunyan-formatter = "0.3"
+tracing-bunyan-formatter = "0.3.7"
 secrecy = { version = "0.8", features = ["serde"] }
 tracing-actix-web = "0.5"
 
@@ -26,7 +26,8 @@ features = [
   "postgres", 
   "uuid",
   "chrono",
-  "migrate"
+  "migrate",
+  "offline"
 ]
 
 [dev-dependencies]

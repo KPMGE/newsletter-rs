@@ -124,9 +124,10 @@ async fn subscribe_returns_200_for_valid_form_data() {
 }
 
 pub async fn configure_database(config: &DbSettings) -> PgPool {
-    let mut connection = PgConnection::connect(&config.get_connection_string_without_db().expose_secret())
-        .await
-        .expect("Failed to connect to Postgres");
+    let mut connection =
+        PgConnection::connect(&config.get_connection_string_without_db().expose_secret())
+            .await
+            .expect("Failed to connect to Postgres");
 
     connection
         .execute(format!(r#"CREATE DATABASE {};"#, config.db_name).as_str())
