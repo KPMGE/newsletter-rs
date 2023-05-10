@@ -18,6 +18,8 @@ tracing-actix-web = "0.5"
 tracing-bunyan-formatter = "0.3.1"
 unicode-segmentation = "1"
 claim = "0.5"
+validator = "0.14"
+fake = "~2.3"
 
 [dependencies.sqlx]
 version = "0.5.7"
