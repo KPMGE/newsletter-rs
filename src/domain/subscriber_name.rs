@@ -2,12 +2,6 @@ use unicode_segmentation::UnicodeSegmentation;
 const MAX_SUSCRIBER_NAME_LENGHT: usize = 256;
 
 #[derive(Debug)]
-pub struct NewSubscriber {
-    pub email: String, 
-    pub name: SubscriberName
-}
-
-#[derive(Debug)]
 pub struct SubscriberName(String);
 
 impl SubscriberName {
@@ -83,4 +77,3 @@ mod tests {
         assert_ok!(SubscriberName::parse(valid_name));
     }
 }
-
