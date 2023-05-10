@@ -17,16 +17,19 @@ impl SubscriberName {
             Ok(Self(s))
         }
     }
+}
 
-    pub fn inner(self) -> String {
+impl ToString for SubscriberName {
+    fn to_string(&self) -> String {
         self.0
-    }
-
-    pub fn inner_mut(&mut self) -> &mut str {
-        &mut self.0
     }
 }
 
+impl AsMut<str> for SubscriberName {
+    fn as_mut(&mut self) -> &mut str {
+        &mut self.0
+    }
+}
 
 impl AsRef<str> for SubscriberName {
     fn as_ref(&self) -> &str {

@@ -17,6 +17,18 @@ impl AsRef<str> for SubscriberEmail {
     }
 }
 
+impl AsMut<str> for SubscriberEmail {
+    fn as_mut(&mut self) -> &mut str {
+        &mut self.0
+    }
+}
+
+impl ToString for SubscriberEmail {
+    fn to_string(&self) -> String {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::SubscriberEmail;
