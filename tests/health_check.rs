@@ -55,6 +55,29 @@ async fn spawn_app() -> TestApp {
     }
 }
 
+pub async fn configure_database(config: &DbSettings) -> PgPool {
+    let mut connection =
+        PgConnection::connect(&config.get_connection_string_without_db().expose_secret())
+            .await
+            .expect("Failed to connect to Postgres");
+
+    connection
+        .execute(format!(r#"CREATE DATABASE {};"#, config.db_name).as_str())
+        .await
+        .expect("Failed to create database");
+
+    let connection_pool = PgPool::connect(&config.get_connection_string().expose_secret())
+        .await
+        .expect("Failed to connect to Postgres");
+
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("Failed to migrate the database");
+
+    connection_pool
+}
+
 #[tokio::test]
 async fn health_check_test() {
     let app = spawn_app().await;
@@ -123,25 +146,19 @@ async fn subscribe_returns_200_for_valid_form_data() {
     assert_eq!(data_saved.email, "ursula_le_guin@gmail.com");
 }
 
-pub async fn configure_database(config: &DbSettings) -> PgPool {
-    let mut connection =
-        PgConnection::connect(&config.get_connection_string_without_db().expose_secret())
-            .await
-            .expect("Failed to connect to Postgres");
+#[tokio::test]
+async fn suscribe_returns_400_when_data_is_present_but_invalid() {
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+    let body = "name=()<>=ursula_le_guin%40gmail.com";
 
-    connection
-        .execute(format!(r#"CREATE DATABASE {};"#, config.db_name).as_str())
-        .await
-        .expect("Failed to create database");
+    let response = client
+    .post(format!("{}/subscribe", app.address))
+    .header("Content-Type", "application/x-www-form-urlencoded")
+    .body(body)
+    .send()
+    .await
+    .expect("Failed to execute request");
 
-    let connection_pool = PgPool::connect(&config.get_connection_string().expose_secret())
-        .await
-        .expect("Failed to connect to Postgres");
-
-    sqlx::migrate!("./migrations")
-        .run(&connection_pool)
-        .await
-        .expect("Failed to migrate the database");
-
-    connection_pool
+    assert_eq!(400, response.status());
 }
