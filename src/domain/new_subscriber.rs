@@ -1,7 +1,7 @@
-use super::SubscriberName;
+use super::{SubscriberName, SubscriberEmail};
 
 #[derive(Debug)]
 pub struct NewSubscriber {
-    pub email: String, 
+    pub email: SubscriberEmail, 
     pub name: SubscriberName
 }
