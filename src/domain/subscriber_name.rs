@@ -21,7 +21,7 @@ impl SubscriberName {
 
 impl ToString for SubscriberName {
     fn to_string(&self) -> String {
-        self.0
+        self.0.to_string()
     }
 }
 

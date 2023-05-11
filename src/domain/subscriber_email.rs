@@ -25,16 +25,31 @@ impl AsMut<str> for SubscriberEmail {
 
 impl ToString for SubscriberEmail {
     fn to_string(&self) -> String {
-        self.0
+        self.0.to_string()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::SubscriberEmail;
-    use claim::{assert_err, assert_ok};
+    use claim::assert_err;
     use fake::Fake;
     use fake::faker::internet::en::SafeEmail;
+    use quickcheck::empty_shrinker;
+
+    #[derive(Debug, Clone)]
+    struct ValidEmailFixture(pub String);
+
+    impl quickcheck::Arbitrary  for ValidEmailFixture {
+        fn arbitrary<G: quickcheck::Gen>(g: &mut G) -> Self {
+            let email = SafeEmail().fake_with_rng(g);
+            Self(email)
+        }
+
+        fn shrink(&self) -> Box<dyn Iterator<Item = Self>> {
+            empty_shrinker()
+        }
+    }
 
     #[test]
     fn empty_string_is_invalid() {
@@ -54,9 +69,8 @@ mod tests {
         assert_err!(SubscriberEmail::parse(test_email));
     }
 
-    #[test]
-    fn valid_email_is_parsed_correctly() {
-        let test_email = SafeEmail().fake();
-        assert_ok!(SubscriberEmail::parse(test_email));
+    #[quickcheck_macros::quickcheck]
+    fn valid_email_is_parsed_correctly(valid_email: ValidEmailFixture) -> bool {
+        SubscriberEmail::parse(valid_email.0).is_ok()
     }
 } 

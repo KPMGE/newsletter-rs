@@ -1,8 +1,8 @@
 use actix_web::web::Form;
 use actix_web::{post, web, HttpResponse};
-use chrono::Utc;
 use serde::Deserialize;
 use sqlx::PgPool;
+use chrono::Utc;
 use uuid::Uuid;
 use crate::domain::{NewSubscriber, SubscriberName, SubscriberEmail};
 
