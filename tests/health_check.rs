@@ -1,7 +1,8 @@
 use newsletter_rs::configuration::{get_configuration, DbSettings};
+use newsletter_rs::email_client::EmailClient;
 use newsletter_rs::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, Secret};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use uuid::Uuid;
@@ -44,8 +45,12 @@ async fn spawn_app() -> TestApp {
     configs.database.db_name = format!("db_{}", random_db_name);
 
     let pool = configure_database(&configs.database).await;
+    let sender = configs.email_client.sender().expect("Invalid sender email address");
+    let base_url = configs.email_client.base_url;
+    let authorization_token = Secret::new("test-token".to_string());
+    let email_client = EmailClient::new(base_url, sender, authorization_token);
     let server =
-        newsletter_rs::startup::run(listener, pool.clone()).expect("Could not start server");
+        newsletter_rs::startup::run(listener, pool.clone(), email_client).expect("Could not start server");
     let address = format!("http://localhost:{}", port);
     let _ = tokio::spawn(server);
 

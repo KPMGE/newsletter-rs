@@ -1,8 +1,14 @@
 app: 
   port: 8080
+
 database: 
   user_name: postgres
   password: password
   port: 5432
   host: localhost
   db_name: newsletter
+
+email_client: 
+  base_url: test 
+  sender_email: test@gmail.com
+  authorization_token: my-secret-token
