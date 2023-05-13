@@ -65,9 +65,9 @@ mod tests {
     use secrecy::Secret;
     use wiremock::{MockServer, Mock, ResponseTemplate};
     use wiremock::matchers::{header_exists, header, method, path};
+    use claim::assert_ok;
     use super::EmailClient;
     use crate::domain::SubscriberEmail;
-
 
     struct SendEmailBodyMatcher;
 
@@ -107,6 +107,7 @@ mod tests {
         let subject: String = Sentence(1..2).fake();
         let content: String = Paragraph(1..10).fake();
 
-        let _ = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+        let result = email_client.send_email(subscriber_email, &subject, &content, &content).await;
+        assert_ok!(result);
     }
 }
