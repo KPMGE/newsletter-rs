@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, Secret};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
+use std::time::Duration;
 use uuid::Uuid;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -48,7 +49,7 @@ async fn spawn_app() -> TestApp {
     let sender = configs.email_client.sender().expect("Invalid sender email address");
     let base_url = configs.email_client.base_url;
     let authorization_token = Secret::new("test-token".to_string());
-    let email_client = EmailClient::new(base_url, sender, authorization_token);
+    let email_client = EmailClient::new(base_url, sender, authorization_token, Duration::from_millis(100));
     let server =
         newsletter_rs::startup::run(listener, pool.clone(), email_client).expect("Could not start server");
     let address = format!("http://localhost:{}", port);

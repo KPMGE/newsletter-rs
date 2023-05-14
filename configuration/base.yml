@@ -12,3 +12,4 @@ email_client:
   base_url: test 
   sender_email: test@gmail.com
   authorization_token: my-secret-token
+  timeout_milliseconds: 20000

@@ -23,9 +23,14 @@ struct SendEmailRequest<'a> {
 }
 
 impl EmailClient {
-    pub fn new(base_url: String, sender: SubscriberEmail, authorization_token: Secret<String>) -> Self {
+    pub fn new(
+        base_url: String,
+        sender: SubscriberEmail,
+        authorization_token: Secret<String>,
+        timeout: Duration
+    ) -> Self {
         let http_client = Client::builder()
-            .timeout(Duration::from_secs(10))
+            .timeout(timeout)
             .build()
             .unwrap();
 
@@ -94,7 +99,7 @@ mod tests {
 
     fn fake_email_client(base_url: String) ->  EmailClient {
         let fake_token = Secret::new(Faker.fake());
-        EmailClient::new(base_url, fake_email(), fake_token)
+        EmailClient::new(base_url, fake_email(), fake_token, Duration::from_millis(100))
     }
 
     impl wiremock::Match for SendEmailBodyMatcher {

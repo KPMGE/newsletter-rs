@@ -18,10 +18,11 @@ async fn main() -> std::io::Result<()> {
         .connect_lazy(&db_connection_string.expose_secret())
         .expect("could not connect to the database");
 
+    let timeout = configs.email_client.timeout();
     let sender_email = configs.email_client.sender().expect("Invalid sender email address");
     let base_url = configs.email_client.base_url;
     let authorization_token = configs.email_client.authorization_token;
-    let email_client = EmailClient::new(base_url, sender_email, authorization_token);
+    let email_client = EmailClient::new(base_url, sender_email, authorization_token, timeout);
 
     let address = format!("{}:{}", configs.app.host, configs.app.port);
     let listener = TcpListener::bind(address).expect("could not start tcp listener");
