@@ -1,15 +1,15 @@
 use std::time::Duration;
 
-use reqwest::Client;
-use secrecy::{Secret, ExposeSecret};
-use serde::Serialize;
 use crate::domain::SubscriberEmail;
+use reqwest::Client;
+use secrecy::{ExposeSecret, Secret};
+use serde::Serialize;
 
 pub struct EmailClient {
     pub http_client: Client,
     pub base_url: String,
     pub sender: SubscriberEmail,
-    pub authorization_token: Secret<String>
+    pub authorization_token: Secret<String>,
 }
 
 #[derive(Serialize)]
@@ -19,7 +19,7 @@ struct SendEmailRequest<'a> {
     to: &'a str,
     subject: &'a str,
     html_body: &'a str,
-    text_body: &'a str
+    text_body: &'a str,
 }
 
 impl EmailClient {
@@ -27,40 +27,40 @@ impl EmailClient {
         base_url: String,
         sender: SubscriberEmail,
         authorization_token: Secret<String>,
-        timeout: Duration
+        timeout: Duration,
     ) -> Self {
-        let http_client = Client::builder()
-            .timeout(timeout)
-            .build()
-            .unwrap();
+        let http_client = Client::builder().timeout(timeout).build().unwrap();
 
         Self {
             http_client,
             base_url,
             sender,
-            authorization_token
+            authorization_token,
         }
     }
 
     pub async fn send_email(
-        &self, 
-        recipient: SubscriberEmail, 
-        subject: &str, 
-        html_content: &str, 
-        text_content: &str
+        &self,
+        recipient: SubscriberEmail,
+        subject: &str,
+        html_content: &str,
+        text_content: &str,
     ) -> Result<(), reqwest::Error> {
         let url = format!("{}/email", self.base_url);
         let request_body = SendEmailRequest {
             from: self.sender.as_ref(),
             to: recipient.as_ref(),
-            subject: subject.as_ref(),
-            html_body: html_content.as_ref(),
-            text_body: text_content.as_ref()
+            subject,
+            html_body: html_content,
+            text_body: text_content,
         };
 
         self.http_client
             .post(&url)
-            .header("X-Postmark-Server-Token", self.authorization_token.expose_secret())
+            .header(
+                "X-Postmark-Server-Token",
+                self.authorization_token.expose_secret(),
+            )
             .json(&request_body)
             .send()
             .await?
@@ -72,16 +72,16 @@ impl EmailClient {
 
 #[cfg(test)]
 mod tests {
-    use fake::Faker;
-    use fake::faker::lorem::en::{Sentence, Paragraph};
-    use fake::{faker::internet::en::SafeEmail, Fake};
-    use secrecy::Secret;
-    use wiremock::{MockServer, Mock, ResponseTemplate};
-    use wiremock::matchers::{header_exists, header, method, path, any};
-    use claim::{assert_ok, assert_err};
     use super::EmailClient;
     use crate::domain::SubscriberEmail;
+    use claim::{assert_err, assert_ok};
+    use fake::faker::lorem::en::{Paragraph, Sentence};
+    use fake::Faker;
+    use fake::{faker::internet::en::SafeEmail, Fake};
+    use secrecy::Secret;
     use std::time::Duration;
+    use wiremock::matchers::{any, header, header_exists, method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     struct SendEmailBodyMatcher;
 
@@ -97,9 +97,14 @@ mod tests {
         SubscriberEmail::parse(SafeEmail().fake()).unwrap()
     }
 
-    fn fake_email_client(base_url: String) ->  EmailClient {
+    fn fake_email_client(base_url: String) -> EmailClient {
         let fake_token = Secret::new(Faker.fake());
-        EmailClient::new(base_url, fake_email(), fake_token, Duration::from_millis(100))
+        EmailClient::new(
+            base_url,
+            fake_email(),
+            fake_token,
+            Duration::from_millis(100),
+        )
     }
 
     impl wiremock::Match for SendEmailBodyMatcher {
@@ -109,10 +114,10 @@ mod tests {
                 dbg!(&body);
 
                 return body.get("From").is_some()
-                && body.get("To").is_some()
-                && body.get("Subject").is_some()
-                && body.get("HtmlBody").is_some()
-                && body.get("TextBody").is_some();
+                    && body.get("To").is_some()
+                    && body.get("Subject").is_some()
+                    && body.get("HtmlBody").is_some()
+                    && body.get("TextBody").is_some();
             }
             false
         }
@@ -135,11 +140,12 @@ mod tests {
 
         let result = email_client
             .send_email(
-                fake_email(), 
-                &fake_subject(), 
-                &fake_content(), 
-                &fake_content()
-            ).await;
+                fake_email(),
+                &fake_subject(),
+                &fake_content(),
+                &fake_content(),
+            )
+            .await;
 
         assert_ok!(result);
     }
@@ -157,11 +163,12 @@ mod tests {
 
         let result = email_client
             .send_email(
-                fake_email(), 
-                &fake_subject(), 
-                &fake_content(), 
-                &fake_content()
-            ).await;
+                fake_email(),
+                &fake_subject(),
+                &fake_content(),
+                &fake_content(),
+            )
+            .await;
 
         assert_err!(result);
     }
@@ -170,8 +177,7 @@ mod tests {
     async fn send_email_times_out_if_server_takes_too_long() {
         let mock_server = MockServer::start().await;
         let email_client = fake_email_client(mock_server.uri());
-        let response = ResponseTemplate::new(200)
-            .set_delay(Duration::from_secs(180));
+        let response = ResponseTemplate::new(200).set_delay(Duration::from_secs(180));
 
         Mock::given(any())
             .respond_with(response)
@@ -181,11 +187,12 @@ mod tests {
 
         let result = email_client
             .send_email(
-                fake_email(), 
-                &fake_subject(), 
-                &fake_content(), 
-                &fake_content()
-            ).await;
+                fake_email(),
+                &fake_subject(),
+                &fake_content(),
+                &fake_content(),
+            )
+            .await;
 
         assert_err!(result);
     }

@@ -1,11 +1,9 @@
 use newsletter_rs::configuration::{get_configuration, DbSettings};
-use newsletter_rs::email_client::EmailClient;
+use newsletter_rs::startup::{get_connection_pool, Application};
 use newsletter_rs::telemetry::{get_subscriber, init_subscriber};
 use once_cell::sync::Lazy;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
-use std::net::TcpListener;
-use std::time::Duration;
 use uuid::Uuid;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -29,31 +27,34 @@ pub struct TestApp {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
-    // we  bind to 0, so we get a random port assigned by the OS for us
-    let listener = TcpListener::bind("localhost:0").expect("Coult not start tcp listener");
+    // randomise configuration to ensure code isolation
+    let configuration = {
+        // get a random database name
+        let random_db_name = Uuid::new_v4()
+            .to_string()
+            .chars()
+            .filter(|c| c.is_alphabetic())
+            .collect::<String>();
 
-    // port assigned by OS
-    let port = listener.local_addr().unwrap().port();
-    let mut configs = get_configuration().expect("could not read configuration file!");
+        let mut conf = get_configuration().expect("failed to read configuration file");
+        // different database for each test
+        conf.database.db_name = format!("db_{}", random_db_name);
+        // use random OS-given port
+        conf.app.port = 0;
+        conf
+    };
 
-    // get a random database name
-    let random_db_name = Uuid::new_v4()
-        .to_string()
-        .chars()
-        .filter(|c| c.is_alphabetic())
-        .collect::<String>();
+    let pool = get_connection_pool(&configuration.database);
 
-    configs.database.db_name = format!("db_{}", random_db_name);
+    // create and migrate database
+    configure_database(&configuration.database).await;
 
-    let pool = configure_database(&configs.database).await;
-    let sender = configs.email_client.sender().expect("Invalid sender email address");
-    let base_url = configs.email_client.base_url;
-    let authorization_token = Secret::new("test-token".to_string());
-    let email_client = EmailClient::new(base_url, sender, authorization_token, Duration::from_millis(100));
-    let server =
-        newsletter_rs::startup::run(listener, pool.clone(), email_client).expect("Could not start server");
-    let address = format!("http://localhost:{}", port);
-    let _ = tokio::spawn(server);
+    let application = Application::build(configuration)
+        .await
+        .expect("Failed to build application");
+
+    let address = format!("http://localhost:{}", application.port());
+    let _ = tokio::spawn(application.run_until_stopped());
 
     TestApp {
         address,

@@ -10,7 +10,7 @@ use crate::domain::SubscriberEmail;
 pub struct Settings {
     pub database: DbSettings,
     pub app: AppSettings,
-    pub email_client: EmailClientSettings
+    pub email_client: EmailClientSettings,
 }
 
 #[derive(Deserialize)]
@@ -24,8 +24,8 @@ pub struct DbSettings {
 
 #[derive(Deserialize)]
 pub struct AppSettings {
-    pub port: u16, 
-    pub host: String
+    pub port: u16,
+    pub host: String,
 }
 
 #[derive(Deserialize)]
@@ -33,7 +33,7 @@ pub struct EmailClientSettings {
     pub base_url: String,
     pub sender_email: String,
     pub authorization_token: Secret<String>,
-    pub timeout_milliseconds: u64
+    pub timeout_milliseconds: u64,
 }
 
 impl EmailClientSettings {
@@ -50,35 +50,30 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
     let mut settings = config::Config::default();
     let base_path = std::env::current_dir().expect("failed to determine current directory");
     let configs_directory = base_path.join("configuration");
-    
+
     // read default configuration file
-    settings.merge(
-        File::from(configs_directory.join("base")).required(true)
-    )?;
+    settings.merge(File::from(configs_directory.join("base")).required(true))?;
 
     let environment: Environment = std::env::var("APP_ENVIRONTMENT")
         .unwrap_or_else(|_| "local".into())
         .try_into()
         .expect("failed to parse APP_ENVIRONTMENT");
 
-    settings.merge(
-        File::from(configs_directory.join(environment.as_str())).required(true)
-    )?;
-
+    settings.merge(File::from(configs_directory.join(environment.as_str())).required(true))?;
 
     settings.try_into()
 }
 
 pub enum Environment {
     Local,
-    Production
+    Production,
 }
 
 impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {
             Environment::Local => "local",
-            Environment::Production => "production"
+            Environment::Production => "production",
         }
     }
 }
@@ -93,11 +88,10 @@ impl TryFrom<String> for Environment {
             other => Err(format!(
                 "{} is not a supported environment. Use either 'local' or 'production'",
                 other
-            ))
+            )),
         }
     }
 }
-
 
 impl DbSettings {
     pub fn get_connection_string(&self) -> Secret<String> {

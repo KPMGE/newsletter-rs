@@ -60,12 +60,12 @@ async fn suscribe_returns_400_when_data_is_present_but_invalid() {
     let body = "name=()<>=ursula_le_guin%40gmail.com";
 
     let response = client
-    .post(format!("{}/subscribe", app.address))
-    .header("Content-Type", "application/x-www-form-urlencoded")
-    .body(body)
-    .send()
-    .await
-    .expect("Failed to execute request");
+        .post(format!("{}/subscribe", app.address))
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .body(body)
+        .send()
+        .await
+        .expect("Failed to execute request");
 
     assert_eq!(400, response.status());
 }
