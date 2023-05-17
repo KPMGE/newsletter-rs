@@ -5,6 +5,7 @@ use once_cell::sync::Lazy;
 use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
+use wiremock::MockServer;
 
 static TRACING: Lazy<()> = Lazy::new(|| {
     let default_filter_level = "info".to_string();
@@ -22,6 +23,7 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    pub email_server: MockServer
 }
 
 impl TestApp { 
@@ -39,6 +41,8 @@ impl TestApp {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
+    let mock_email_server = MockServer::start().await;
+
     // randomise configuration to ensure code isolation
     let configuration = {
         // get a random database name
@@ -53,6 +57,8 @@ pub async fn spawn_app() -> TestApp {
         conf.database.db_name = format!("db_{}", random_db_name);
         // use random OS-given port
         conf.app.port = 0;
+        // use mock email server as the api
+        conf.email_client.base_url = mock_email_server.uri();
         conf
     };
 
@@ -71,6 +77,7 @@ pub async fn spawn_app() -> TestApp {
     TestApp {
         address,
         db_pool: pool,
+        email_server: mock_email_server
     }
 }
 
