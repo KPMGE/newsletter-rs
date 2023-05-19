@@ -1,6 +1,6 @@
 use crate::configuration::{DbSettings, Settings};
 use crate::email_client::EmailClient;
-use crate::routes::{health_check, subscribe};
+use crate::routes::{health_check, subscribe, confirm};
 use actix_web::dev::Server;
 use actix_web::{web::Data, App, HttpServer};
 use secrecy::ExposeSecret;
@@ -58,6 +58,7 @@ pub fn run(
             .wrap(TracingLogger::default())
             .service(health_check)
             .service(subscribe)
+            .service(confirm)
             .app_data(pool.clone())
             .app_data(email_client.clone())
     })
