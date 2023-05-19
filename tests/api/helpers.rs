@@ -23,10 +23,10 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
-    pub email_server: MockServer
+    pub email_server: MockServer,
 }
 
-impl TestApp { 
+impl TestApp {
     pub async fn post_subscriptions(&self, body: String) -> reqwest::Response {
         reqwest::Client::new()
             .post(format!("{}/subscribe", self.address))
@@ -77,7 +77,7 @@ pub async fn spawn_app() -> TestApp {
     TestApp {
         address,
         db_pool: pool,
-        email_server: mock_email_server
+        email_server: mock_email_server,
     }
 }
 
