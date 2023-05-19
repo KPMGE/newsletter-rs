@@ -56,12 +56,13 @@ async fn subscribe_persists_new_subscriber() {
 
     app.post_subscriptions(body).await;
 
-    let data_saved = sqlx::query!("SELECT email, name FROM subscriptions")
+    let data_saved = sqlx::query!("SELECT email, name, status FROM subscriptions")
         .fetch_one(&app.db_pool)
         .await
         .expect("Failed to fetch subscription");
 
     assert_eq!(data_saved.name, "le guin");
+    assert_eq!(data_saved.status, "pending_confirmation");
     assert_eq!(data_saved.email, "ursula_le_guin@gmail.com");
 }
 
@@ -87,11 +88,7 @@ async fn subscribe_sends_confirmation_email_with_link_for_valid_data() {
 
     app.post_subscriptions(body).await;
 
-    let email_request = &app
-        .email_server
-        .received_requests()
-        .await
-        .unwrap();
+    let email_request = &app.email_server.received_requests().await.unwrap();
 
     let body: Value = serde_json::from_slice(&email_request[0].body).unwrap();
 
