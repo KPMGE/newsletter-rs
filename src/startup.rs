@@ -1,6 +1,6 @@
 use crate::configuration::{DbSettings, Settings};
 use crate::email_client::EmailClient;
-use crate::routes::{health_check, subscribe, confirm};
+use crate::routes::{confirm, health_check, subscribe};
 use actix_web::dev::Server;
 use actix_web::{web::Data, App, HttpServer};
 use secrecy::ExposeSecret;
@@ -31,12 +31,7 @@ impl Application {
         let listener = TcpListener::bind(address).expect("could not start tcp listener");
         let port = listener.local_addr().unwrap().port();
 
-        let server = run(
-            listener, 
-            pool,
-            email_client,
-            configs.app.base_url
-        )?;
+        let server = run(listener, pool, email_client, configs.app.base_url)?;
 
         Ok(Self { port, server })
     }
@@ -58,7 +53,7 @@ pub fn run(
     listener: TcpListener,
     db_pool: PgPool,
     email_client: EmailClient,
-    base_url: String
+    base_url: String,
 ) -> Result<Server, std::io::Error> {
     let pool = Data::new(db_pool);
     let email_client = Data::new(email_client);

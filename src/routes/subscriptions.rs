@@ -38,7 +38,7 @@ pub async fn subscribe(
     form: Form<SubscribeFormData>,
     pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
-    app_base_url: web::Data<AppBaseUrl>
+    app_base_url: web::Data<AppBaseUrl>,
 ) -> HttpResponse {
     let new_subscriber = match form.0.try_into() {
         Ok(new_subscriber) => new_subscriber,
@@ -91,9 +91,12 @@ pub async fn insert_subscriber(
 pub async fn send_confirmation_email(
     email_client: &EmailClient,
     new_subscriber: NewSubscriber,
-    base_url: &String
+    base_url: &String,
 ) -> Result<(), reqwest::Error> {
-    let confirmation_link = format!("{}/subscriptions/confirm?subscription_token=mytoken", base_url);
+    let confirmation_link = format!(
+        "{}/subscriptions/confirm?subscription_token=mytoken",
+        base_url
+    );
     let plain_body = format!(
         "Welcome to our newsletter!\nVisit {} to confirm your subscription",
         confirmation_link
