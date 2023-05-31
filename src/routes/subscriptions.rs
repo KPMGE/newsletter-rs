@@ -4,7 +4,7 @@ use crate::startup::AppBaseUrl;
 use actix_web::web::Form;
 use actix_web::ResponseError;
 use actix_web::{post, web::Data, HttpResponse};
-use chrono::Utc;
+// use chrono::Utc;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::Deserialize;
@@ -29,10 +29,31 @@ impl TryFrom<SubscribeFormData> for NewSubscriber {
     }
 }
 
-#[derive(Debug)]
+
+fn error_chain_fmt(
+    e: &impl std::error::Error,
+    f: &mut std::fmt::Formatter<'_>
+) -> std::fmt::Result {
+    writeln!(f, "{}\n", e)?;
+    let mut current = e.source();
+
+    while let Some(cause) = current {
+        writeln!(f, "Caused by: \n\t{}", cause)?;
+        current = cause.source();
+    }
+
+    Ok(())
+}
+
 pub struct StoreTokenError(sqlx::Error);
 
 impl ResponseError for StoreTokenError {}
+
+impl std::fmt::Debug for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(&self.0, f)
+    }
+}
 
 impl Display for StoreTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
