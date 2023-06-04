@@ -95,12 +95,28 @@ async fn subscribe_sends_confirmation_email_with_link_for_valid_data() {
 }
 
 #[tokio::test]
-async fn subscribe_fails_if_there_is_a_fatal_database_error() {
+async fn subscribe_fails_if_there_is_a_fatal_database_error_on_tokens_table() {
     let app = spawn_app().await;
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com".to_string();
 
     // sabotage the database
     sqlx::query!("ALTER TABLE subscriptions_tokens DROP COLUMN subscription_token",)
+        .execute(&app.db_pool)
+        .await
+        .unwrap();
+
+    let response = app.post_subscriptions(body.into()).await;
+
+    assert_eq!(response.status().as_u16(), 500);
+}
+
+#[tokio::test]
+async fn subscribe_fails_if_there_is_a_fatal_database_error_on_subscriptions_table() {
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com".to_string();
+
+    // sabotage the database
+    sqlx::query!("ALTER TABLE subscriptions DROP COLUMN email",)
         .execute(&app.db_pool)
         .await
         .unwrap();

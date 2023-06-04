@@ -4,72 +4,19 @@ use crate::startup::AppBaseUrl;
 use actix_web::web::Form;
 use actix_web::ResponseError;
 use actix_web::{post, web::Data, HttpResponse};
-// use chrono::Utc;
+use anyhow::Context;
+use chrono::Utc;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
+use reqwest::StatusCode;
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, Transaction};
-use std::fmt::Display;
 use uuid::Uuid;
 
 #[derive(Deserialize)]
 pub struct SubscribeFormData {
     pub name: String,
     pub email: String,
-}
-
-impl TryFrom<SubscribeFormData> for NewSubscriber {
-    type Error = String;
-
-    fn try_from(value: SubscribeFormData) -> Result<Self, Self::Error> {
-        let name = SubscriberName::parse(value.name)?;
-        let email = SubscriberEmail::parse(value.email)?;
-
-        Ok(NewSubscriber { email, name })
-    }
-}
-
-
-fn error_chain_fmt(
-    e: &impl std::error::Error,
-    f: &mut std::fmt::Formatter<'_>
-) -> std::fmt::Result {
-    writeln!(f, "{}\n", e)?;
-    let mut current = e.source();
-
-    while let Some(cause) = current {
-        writeln!(f, "Caused by: \n\t{}", cause)?;
-        current = cause.source();
-    }
-
-    Ok(())
-}
-
-pub struct StoreTokenError(sqlx::Error);
-
-impl ResponseError for StoreTokenError {}
-
-impl std::fmt::Debug for StoreTokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error_chain_fmt(&self.0, f)
-    }
-}
-
-impl Display for StoreTokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "A database error was encountered when trying to store token"
-        )
-    }
-}
-
-fn generate_subscription_token() -> String {
-    let mut rng = thread_rng();
-    std::iter::repeat_with(|| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(25)
-        .collect()
 }
 
 #[tracing::instrument(
@@ -86,40 +33,36 @@ pub async fn subscribe(
     pool: Data<PgPool>,
     email_client: Data<EmailClient>,
     app_base_url: Data<AppBaseUrl>,
-) -> Result<HttpResponse, actix_web::Error> {
-    let mut transaction = match pool.begin().await {
-        Ok(transaction) => transaction,
-        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
-    };
+) -> Result<HttpResponse, SubscribeError> {
+    let mut transaction = pool
+        .begin()
+        .await
+        .context("Failed to acquire postgres transaction from the pool!")?;
 
-    let new_subscriber = match form.0.try_into() {
-        Ok(new_subscriber) => new_subscriber,
-        Err(_) => return Ok(HttpResponse::BadRequest().finish()),
-    };
+    let new_subscriber = form.0.try_into().map_err(SubscribeError::ValidationError)?;
 
-    let subscriber_id = match insert_subscriber(&mut transaction, &new_subscriber).await {
-        Ok(subscriber_id) => subscriber_id,
-        Err(_) => return Ok(HttpResponse::InternalServerError().finish()),
-    };
+    let subscriber_id = insert_subscriber(&mut transaction, &new_subscriber)
+        .await
+        .context("Failed to insert subscriber in the database!")?;
 
     let subscription_token = generate_subscription_token();
-    store_token(&mut transaction, subscriber_id, &subscription_token).await?;
+    store_token(&mut transaction, subscriber_id, &subscription_token)
+        .await
+        .context("Filed to store subscription token in the database!")?;
 
-    if transaction.commit().await.is_err() {
-        return Ok(HttpResponse::InternalServerError().finish());
-    }
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit transaction to save new subscriber")?;
 
-    if send_confirmation_email(
+    send_confirmation_email(
         &email_client,
         new_subscriber,
         &app_base_url.0,
         &subscription_token,
     )
     .await
-    .is_err()
-    {
-        return Ok(HttpResponse::InternalServerError().finish());
-    }
+    .context("Failed to send confirmation email!")?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -208,4 +151,86 @@ pub async fn store_token(
     })?;
 
     Ok(())
+}
+
+impl TryFrom<SubscribeFormData> for NewSubscriber {
+    type Error = String;
+
+    fn try_from(value: SubscribeFormData) -> Result<Self, Self::Error> {
+        let name = SubscriberName::parse(value.name)?;
+        let email = SubscriberEmail::parse(value.email)?;
+
+        Ok(NewSubscriber { email, name })
+    }
+}
+
+fn error_chain_fmt(
+    e: &impl std::error::Error,
+    f: &mut std::fmt::Formatter<'_>,
+) -> std::fmt::Result {
+    writeln!(f, "{}\n", e)?;
+    let mut current = e.source();
+
+    while let Some(cause) = current {
+        writeln!(f, "Caused by: \n\t{}", cause)?;
+        current = cause.source();
+    }
+
+    Ok(())
+}
+
+pub struct StoreTokenError(sqlx::Error);
+
+impl ResponseError for StoreTokenError {}
+
+impl std::fmt::Debug for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(&self.0, f)
+    }
+}
+
+impl std::fmt::Display for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "A database error was encountered when trying to store token"
+        )
+    }
+}
+
+impl std::error::Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.0)
+    }
+}
+
+#[derive(thiserror::Error)]
+pub enum SubscribeError {
+    #[error("{0}")]
+    ValidationError(String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
+}
+
+impl ResponseError for SubscribeError {
+    fn status_code(&self) -> reqwest::StatusCode {
+        match self {
+            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
+            SubscribeError::UnexpectedError(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl std::fmt::Debug for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(&self, f)
+    }
+}
+
+fn generate_subscription_token() -> String {
+    let mut rng = thread_rng();
+    std::iter::repeat_with(|| rng.sample(Alphanumeric))
+        .map(char::from)
+        .take(25)
+        .collect()
 }
