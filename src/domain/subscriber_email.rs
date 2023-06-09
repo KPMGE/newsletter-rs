@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub struct SubscriberEmail(String);
+pub struct SubscriberEmail(pub String);
 
 impl SubscriberEmail {
     pub fn parse(s: String) -> Result<Self, String> {
@@ -20,12 +20,6 @@ impl AsRef<str> for SubscriberEmail {
 impl AsMut<str> for SubscriberEmail {
     fn as_mut(&mut self) -> &mut str {
         &mut self.0
-    }
-}
-
-impl ToString for SubscriberEmail {
-    fn to_string(&self) -> String {
-        self.0.to_string()
     }
 }
 
