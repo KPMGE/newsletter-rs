@@ -1,11 +1,10 @@
 use std::fmt::Debug;
 
 use actix_web::post;
-use actix_web::web::Data;
+use actix_web::web::{Data, Json};
 use actix_web::HttpResponse;
 use actix_web::ResponseError;
 use anyhow::Context;
-use anyhow::Error;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use sqlx::PgPool;
@@ -41,7 +40,7 @@ impl ResponseError for PublishError {
 
 #[post("/newsletters")]
 pub async fn publish_newsletter(
-    body: Data<BodyData>,
+    body: Json<BodyData>,
     pool: Data<PgPool>,
     email_client: Data<EmailClient>,
 ) -> Result<HttpResponse, PublishError> {
